@@ -1,0 +1,79 @@
+
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: blackbox-exporter
+  namespace: kube-vm
+  labels:
+    app: blackbox-exporter
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app: blackbox-exporter
+    spec:
+      containers:
+      - name: blackbox-exporter
+        image: prom/blackbox-exporter:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - --config.file=/etc/blackbox_exporter/blackbox.yml
+        - --log.level=info
+        - --web.listen-address=:9115
+        ports:
+        - name: blackbox-port
+          containerPort: 9115
+          protocol: TCP
+        resources:
+          limits:
+            memory: 2048Mi
+          requests:
+            memory: 100Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/blackbox_exporter
+          readOnly: true
+        readinessProbe:
+          tcpSocket:
+            port: 9115
+          initialDelaySeconds: 30
+          timeoutSeconds: 3
+          periodSeconds: 5
+          # successThreshold: 1
+          # failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 9115
+          # 在第一次探针前等待时间
+          initialDelaySeconds: 30
+          periodSeconds: 3
+      nodeSelector:
+        #kubernetes.io/role: ops-node
+        service: vm
+      volumes:
+      - name: config
+        configMap:
+          name: blackbox-exporter-cm
+          # defaultMode: 420
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: blackbox-exporter
+  name: blackbox-exporter
+  namespace: kube-vm
+spec:
+  type: NodePort 
+  ports:
+ #- name: balckbox
+  - port: 9115
+    protocol: TCP
+    targetPort: blackbox-port
+    nodePort: 30115
+  selector:
+    app: blackbox-exporter

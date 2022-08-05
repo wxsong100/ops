@@ -1,0 +1,30 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-exporter-cm
+  namespace: kube-vm
+data:
+  blackbox.yml: |-
+    modules:
+      http_2xx_get:
+        prober: http
+        timeout: 3s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2"]
+          valid_status_codes: [200,301,302]
+          method: GET
+          preferred_ip_protocol: "ipv4"
+      http_2xx_post:
+        prober: http
+        timeout: 3s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2"]
+          valid_status_codes: [200,301,302]
+          method: POST
+          preferred_ip_protocol: "ipv4"
+      tcp_connect:
+        prober: tcp
+        timeout: 3s
+      icmp:
+        prober: icmp

@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dsp-vmagent
+  namespace: kube-victoriametrics
+  labels:
+    app: dsp-vmagent
+spec:
+  serviceName: dsp-vmagent
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dsp-vmagent
+  template:
+    metadata:
+      labels:
+        app: dsp-vmagent
+    spec:
+      containers:
+        - name: dsp-vmagent
+          image: victoriametrics/vmagent:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - -promscrape.cluster.membersCount=3
+            - -promscrape.cluster.memberNum=$(MY_POD_NAME)
+            - -promscrape.cluster.replicationFactor=3
+            - -promscrape.suppressScrapeErrors
+            # 每隔30s检测配置文件是否更新
+            - -promscrape.configCheckInterval=30s
+            # -remoteWrite.tmpDataPath=/victoriametrics-data/vmagent
+            # -remoteWrite.maxDiskUsagePerURL=1GB
+            # default :8429
+            # -httpListenAddr=":${VMAGENT_PORT}"
+            - -promscrape.config=/victoriametrics-data/vmagent/config/prometheus.yml
+            # 这里ACCOUNT_ID是2  2是dsp的所有指标存放账户
+            - -remoteWrite.url=http://vminsert:8480/insert/2/prometheus/api/v1/write
+          env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          volumeMounts:
+          - name: config
+            mountPath: /victoriametrics-data/vmagent/config
+            # subPath: prometheus.yml
+            readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: 8429
+            initialDelaySeconds: 60
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8429
+            initialDelaySeconds: 60
+            periodSeconds: 3
+          ports:
+          - name: vmagent-http
+            containerPort: 8429
+            protocol: TCP
+      nodeSelector:
+        # kubernetes.io/role=ops-node
+        kubernetes.io/role: ops-node
+      volumes:
+      - name: config
+        configMap:
+          name: dsp-vmagent-config
+          # 来自 ConfigMap 的一组键，将被创建为文件
+          items:
+          - key: "prometheus.yml"
+            path: "prometheus.yml"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsp-vmagent
+  namespace: kube-victoriametrics
+  labels:
+    app: dsp-vmagent
+spec:
+  type: NodePort
+  ports:
+  - port: 8429
+    targetPort: vmagent-http
+    protocol: TCP
+  selector:
+    app: dsp-vmagent

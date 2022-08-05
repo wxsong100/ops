@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vmalert-config
+  namespace: kube-vm
+data:
+  rule.yml: |
+    groups:
+    - name: HF_K8S
+      interval: 1s
+      rules:
+        - alert: IaaS_MEM
+          expr: (1- (node_memory_Buffers_bytes + node_memory_Cached_bytes + node_memory_MemFree_bytes) / node_memory_MemTotal_bytes) * 100 > 95
+          for: 3s
+          labels:
+            # labels中定义需要被收敛到一起的告警key，这里定义的key是department_type
+            department_type: hf_k8s_iaas
+          annotations:
+            value: "{{ $value }}"
+            tos: "15856960937"
+            department: "sre"
+            content: "内存告警"
+            level: 2
+            send_resolved: false
+            details: true
+
+
+

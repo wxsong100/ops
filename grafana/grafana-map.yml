@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-ini-cm
+  namespace: grafana
+data:
+  grafana2.ini: |
+    [server]
+    # Protocol (http, https, h2, socket)
+    ;protocol = https
+    # The ip address to bind to, empty will bind to all interfaces
+    ;http_addr =
+    # The http port  to use
+    ;http_port = 3000
+    # The public facing domain name used to access grafana from a browser
+    ;domain = jk.voiceads.cn
+    ;root_url = https://jk.voiceads.cn/
+    [database]
+    #type = mysql
+    #host = 172.16.59.130:3366
+    #name = grafana_t
+    #user = root
+    #password = 123456

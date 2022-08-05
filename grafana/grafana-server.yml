@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: grafana
+  minReadySeconds: 0
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      nodeSelector:
+          app: grafana
+      containers:        
+      - name: grafana
+        #image: grafana/grafana:7.3.0
+        image: grafana/grafana
+        imagePullPolicy: IfNotPresent
+        #resources:
+        #  limits:
+        #    memory: "128Mi"
+        #    cpu: "50m"
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 40
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 3000
+          initialDelaySeconds: 40
+          periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/grafana/grafana2.ini
+          readOnly: true
+          subPath: grafana2.ini
+        - name: db
+          mountPath: /var/lib/grafana/grafana.db
+          subPath: grafana.db
+          #readOnly: true
+        ports:
+          - containerPort: 3000
+      volumes:
+      - name: config
+        configMap:
+          name: grafana-ini-cm
+          # 来自 ConfigMap 的一组键，将被创建为文件
+          items:
+            - key: "grafana2.ini"
+              path: "grafana.ini" 
+      - name: db
+        #hostPath:
+           #path: /ops
+        nfs:
+          server: 172.16.59.130
+          path: /data/nfs
+

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: kube-vm
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      # hostNetwork: true
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager
+        args:
+        # 指定容器中AlertManager配置文件存放地址 (Docker容器中的绝对位置)
+        - "--config.file=/etc/alertmanager/alertmanager.yml"
+        # 指定AlertManager管理界面地址，用于在发生的告警信息中,附加AlertManager告警信息页面地址
+        # - "--web.external-url=http://192.168.2.11:30903"
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          tcpSocket:
+            port: 9093
+            # 服务启动后，多长时间服务可用
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 9093
+          # 在第一次探针前等待时间
+          initialDelaySeconds: 30
+          periodSeconds: 3
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alertmanager
+          # subPath: alertmanager.yml
+          readOnly: true
+        ports:
+        - name: alertmanagertcp
+          containerPort: 9093
+          protocol: TCP
+        readinessProbe:
+            tcpSocket:
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 9093
+          initialDelaySeconds: 10
+          periodSeconds: 3
+      nodeSelector:
+        service: vm2
+      volumes:
+      - name: config
+        configMap:
+          name: alertmanager
+          # 来自 ConfigMap 的一组键，将被创建为文件
+          items:
+          - key: "alertmanager.yml"
+            path: "alertmanager.yml"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: kube-vm
+  labels:
+    app: alertmanager
+spec:
+  type: NodePort
+  ports:
+  - port: 9093
+    targetPort: alertmanagertcp
+    protocol: TCP
+  selector:
+    app: alertmanager

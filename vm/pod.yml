@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: talpine
+  namespace: kube-system
+spec:
+  serviceAccount: senhua-vm
+  containers:
+  - name: talpine
+    image: alpine:latest
+    imagePullPolicy: IfNotPresent
+    command: [ "/bin/sh", "-c", "sleep 999h" ]

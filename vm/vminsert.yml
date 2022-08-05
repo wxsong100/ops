@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vminsert
+  namespace: kube-vm
+  labels:
+    app: vminsert
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vminsert
+  template:
+    metadata:
+      labels:
+        app: vminsert
+    spec:
+      containers:
+        - name: vminsert
+          image: victoriametrics/vminsert:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            # 数据存储的副本数
+            - -replicationFactor=2
+            - -storageNode=172.30.33.205,172.30.8.171
+              #default :8480
+            # - -httpListenAddr=":${VMINSERT_PORT}"
+          ports:
+          - name: vminsert-tcp
+            containerPort: 8480
+            protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 8480
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8480
+            initialDelaySeconds: 30
+            periodSeconds: 3
+      nodeSelector:
+        # kubernetes.io/role=ops-node
+        service: vm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vminsert
+  namespace: kube-vm
+  labels:
+    app: vminsert
+spec:
+  type: NodePort
+  ports:
+  - port: 8480
+    targetPort: vminsert-tcp
+    protocol: TCP
+  selector:
+    app: vminsert

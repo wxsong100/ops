@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vmalert
+  namespace: kube-vm
+  labels:
+    app: vmalert
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vmalert
+  template:
+    metadata:
+      labels:
+        app: vmalert
+    spec:
+      containers:
+        - name: vmalert
+          image: victoriametrics/vmalert:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - -rule=/data/vmalert/config/rule.yml
+            - -datasource.url=http://vmselect:8481/select/1/prometheus
+            - -notifier.url=http://alertmanager:9093
+              # 每隔30s检测配置文件是否更新
+            - -configCheckInterval=30s
+            - -remoteWrite.url=http://vminsert:8480/insert/1/prometheus
+            - -remoteRead.url=http://vminsert:8481/select/1/prometheus
+            # default :8880
+            # - -httpListenAddr=0.0.0.0:8880
+          volumeMounts:
+          - name: config
+            mountPath: /data/vmalert/config
+            # 使用 ConfigMap 作为 subPath 卷挂载的容器将不会收到 ConfigMap 的更新。
+            # mountPath: /victoriametrics-data/vmalert/config/rule.yml
+            # subPath: rule.yml
+            readOnly: true
+          ports:
+          - name: vmalert-http
+            containerPort: 8880
+            protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 8880
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8880
+            initialDelaySeconds: 30
+            periodSeconds: 3
+      nodeSelector:
+        # kubernetes.io/role=ops-node
+        service: vm2
+      volumes:
+      - name: config
+        configMap:
+          name: vmalert-config
+          # 来自 ConfigMap 的一组键，将被创建为文件
+          items:
+          - key: "rule.yml"
+            path: "rule.yml"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmalert
+  namespace: kube-vm
+  labels:
+    app: vmalert
+spec:
+  type: NodePort
+  ports:
+  - port: 8880
+    targetPort: vmalert-http
+    protocol: TCP
+  selector:
+    app: vmalert

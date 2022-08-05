@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vmstorage
+  namespace: kube-vm
+  labels:
+    app: vmstorage
+spec:
+  minReadySeconds: 20
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: vmstorage
+  template:
+    metadata:
+      labels:
+        app: vmstorage
+    spec:
+      # hostNetwork: true
+      containers:
+        - name: vmstorage
+          image: victoriametrics/vmstorage:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            # 保存的时间
+            - -retentionPeriod=2w
+            - -dedup.minScrapeInterval=30s
+            - -storageDataPath=/data/vmstorag
+            # 内存限制，暂不加
+            # - -memory.allowedBytes=${MEM_LIMIT}
+            # default :8482
+            # - -httpListenAddr=":${VMSOTRAGE_PORT}"
+            # default :8400
+            # - -vminsertAddr=":${VMSOTRAGE_INSERT_PORT}"
+            # default :8401
+            # - -vmselectAddr=":${VMSOTRAGE_SELECT_PORT}"
+          ports:
+          - name: vminsert-access
+            hostPort: 8400
+            containerPort: 8400
+            protocol: TCP
+          - name: vmselect-access
+            hostPort: 8401
+            containerPort: 8401
+            protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 8482
+            initialDelaySeconds: 120
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8482
+            initialDelaySeconds: 120
+            periodSeconds: 5
+          volumeMounts:
+          - name: vmstorage-data
+            mountPath: /data/vmstorag
+      nodeSelector:
+        # kubernetes.io/role=ops-node
+        service: vm 
+      volumes:
+      - name: vmstorage-data
+        hostPath:
+          path: /data/vmstorag
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: vmstorage
+#   namespace: kube-victoriametrics
+#   labels:
+#     app: vmstorage
+# spec:
+#   type: NodePort
+#   # 设置 spec.externalTrafficPolicy 字段来控制来自于外部的流量是如何路由的。 可选值有 Cluster 和 Local。字段设为 Cluster 会将外部流量路由到所有就绪的端点， 设为 Local 会只路由到当前节点上就绪的端点。 如果流量策略设置为 Local，而且当前节点上没有就绪的端点，kube-proxy 不会转发请求相关服务的任何流量。
+#   externalTrafficPolicy: Local
+#   ports:
+#   - port: 8400
+#     targetPort: vminsert-tcp
+#     protocol: TCP
+#   - port: 8401
+#     targetPort: vminsert-tcp
+#     protocol: TCP
+#   selector:
+#     app: vmstorage

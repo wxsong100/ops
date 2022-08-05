@@ -1,0 +1,27 @@
+集群监控指标
+	节点资源利用率
+	节点数
+	运行的pods数量
+	
+Pod监控指标
+	容器指标
+	应用程序
+
+
+rometheus：
+	开源的
+	监控、报警、数据库
+	以http协议周期性抓取被监控组件的状态，
+	不需要复杂的基础过程，使用http接口接入即可
+
+
+grafana：
+	开源的数据分析和可视化工具
+	支持多种数据源
+
+rbac-setup.yaml: 设置集群内部的访问角色和权限
+configmap.yaml: 设置集群的相关配置文件，有的通过正则表达式匹配
+prometheus.deploy.yaml: peometheus和其相应的端口号、资源及限制、数据卷挂载等
+prometheus.svc.yaml:  peometheus对外暴露端口
+
+注：几个yaml使用相同的命名空间 kube-system

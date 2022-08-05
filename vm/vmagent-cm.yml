@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vmagent-config
+  namespace: kube-vm
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      scrape_timeout: 15s
+    scrape_configs:
+            #- job_name: "node-exporter"
+            #static_configs:
+            #targets: ["172.16.59.106:9100",'172.30.33.205:9100','172.30.8.171:9100']
+
+    - job_name: "k8s-test"
+      scheme: http
+      kubernetes_sd_configs:
+      - role: node
+        api_server: https://172.30.33.205:6443
+        #serviceAccountName: senhua-vm
+        authorization:
+          credentials: "eyJhbGciOiJSUzI1NiIsImtpZCI6IndWeUVfcHVyaE8wR0NPd0xlbUlTdThVczFNTDlrczl6N251YV91RWY2NXcifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxNjkxMjIzOTQxLCJpYXQiOjE2NTk2ODc5NDEsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsInBvZCI6eyJuYW1lIjoidGFscGluZSIsInVpZCI6IjBiNTMwMTRjLTA2YjItNDM1MC1hNmNhLTBmYjJlZGMxOTFkOSJ9LCJzZXJ2aWNlYWNjb3VudCI6eyJuYW1lIjoic2VuaHVhLXZtIiwidWlkIjoiMjhiNjNmYjktMTJlNy00NTBjLWI5MjUtZTA3ZTk4MjU1NTFhIn0sIndhcm5hZnRlciI6MTY1OTY5MTU0OH0sIm5iZiI6MTY1OTY4Nzk0MSwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOnNlbmh1YS12bSJ9.w-sGwtuv-uoY7UtFguHTbjdGoCfq6nLXfeUd9r5q0NKNUi--S1Q2I55fkaA6hzS8GSniEIDKQqbwiX-rShbS02TI4Uyo-uGPA1iybE5uQGx-xWT2Z2QEAa0wmTvbabU2D1jhIC_OA7q-lIuw1lNVhhw0s-Qs8Xi_AuX9RNtzSf-tDgFXXV-Kc0W61V0lGC9mSXPg0X5mEiqUVW7ZDpSUTRiUjmol_VQaz8lqzoLwsjvKNXdPQxYzhtFAAX4wLr2nI44t4CFk_5SUEyOg-qGcwRHEgLPDRaPbFUkaXdEUfDYd92mMCXF_Ju7mQkVuLnDUis5Bs9cDyb9FTEgELOIAgA"
+          #credentials_file: secret/sh-dsp-token
+        tls_config:
+          # ca_file: secret/sh-dsp-ca.crt
+          insecure_skip_verify: true
+        #bearer_token_file: secret/sh-dsp-token
+        #namespaces:
+        # names: [ "kube-agent" ]
+       #selectors:
+       # - role: "pod"
+          #label: "app=node-exporter"
+      # relabel_configs:
+      # - source_labels: ["__meta_kubernetes_pod_host_ip", "__meta_kubernetes_pod_container_port_number"]
+      #   regex: '(.*);(29100)'
+      #   replacement: '${1}:${2}'
+      #   target_label: address
+      #   action: keep
+      # - source_labels: ["__meta_kubernetes_pod_host_ip", "__meta_kubernetes_pod_container_port_number"]
+      #   regex: '(.*);(29100)'
+      #   replacement: '${1}:${2}'
+      #   target_label: __address__
+      #
+
+    - job_name: 'prometheus-containers' 
+      static_configs:
+      - targets: ["172.16.59.130:8080","172.16.59.106:8090",'172.16.59.131:8090']
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+
+    - job_name: "blackbox_exporter"
+      scrape_interval: 15s
+      scrape_timeout: 10s
+      metrics_path: /probe
+      params:
+        module: [http_2xx_get]
+      static_configs:
+      - targets: ["172.16.59.106:80"]
+      relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
